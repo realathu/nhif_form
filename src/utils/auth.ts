@@ -1,39 +1,70 @@
 import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
-import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { config } from '../config'
 import { db } from './database'
 import logger from './logger'
 
-interface TokenPair {
-  accessToken: string
-  refreshToken: string
-}
-
-export function hashPassword(password: string): string {
-  return bcrypt.hashSync(password, 10)
-}
-
-export function comparePassword(password: string, hashedPassword: string): boolean {
-  return bcrypt.compareSync(password, hashedPassword)
-}
-
-export function generateTokenPair(userId: string, role: string): TokenPair {
+// Enhanced Token Generation
+export function generateTokenPair(userId: string, role: string) {
   const accessToken = jwt.sign(
-    { userId, role, type: 'access' }, 
+    { 
+      userId, 
+      role, 
+      tokenType: 'access' 
+    }, 
     config.jwt.secret, 
-    { expiresIn: config.jwt.expiration }
+    { 
+      algorithm: 'HS256',
+      expiresIn: config.jwt.accessExpiration 
+    }
   )
 
   const refreshToken = jwt.sign(
-    { userId, role, type: 'refresh' }, 
+    { 
+      userId, 
+      role, 
+      tokenType: 'refresh',
+      jti: uuidv4() // Unique identifier for refresh token
+    }, 
     config.jwt.secret, 
-    { expiresIn: '7d' }
+    { 
+      algorithm: 'HS256',
+      expiresIn: config.jwt.refreshExpiration 
+    }
   )
 
   return { accessToken, refreshToken }
 }
 
+// Secure Password Hashing
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hash = crypto.pbkdf2Sync(
+    password, 
+    salt, 
+    10000,  // iterations
+    64,     // key length
+    'sha512'
+  ).toString('hex')
+  
+  return `${salt}:${hash}`
+}
+
+export function comparePassword(inputPassword: string, storedPassword: string): boolean {
+  const [salt, originalHash] = storedPassword.split(':')
+  const hash = crypto.pbkdf2Sync(
+    inputPassword, 
+    salt, 
+    10000, 
+    64, 
+    'sha512'
+  ).toString('hex')
+  
+  return hash === originalHash
+}
+
+// Refresh Token Management
 export async function storeRefreshToken(userId: string, refreshToken: string) {
   try {
     const tokenId = uuidv4()
@@ -67,11 +98,12 @@ export async function refreshAccessToken(refreshToken: string) {
     const decoded = jwt.verify(refreshToken, config.jwt.secret) as { 
       userId: string, 
       role: string, 
-      type: string 
+      tokenType: string,
+      jti: string
     }
 
     // Check if it's a refresh token
-    if (decoded.type !== 'refresh') {
+    if (decoded.tokenType !== 'refresh') {
       throw new Error('Invalid token type')
     }
 
@@ -114,14 +146,5 @@ export async function refreshAccessToken(refreshToken: string) {
   } catch (error) {
     logger.error('Token refresh failed', { error: String(error) })
     throw error
-  }
-}
-
-export function verifyToken(token: string) {
-  try {
-    return jwt.verify(token, config.jwt.secret)
-  } catch (error) {
-    logger.warn('Token verification failed', { error: String(error) })
-    return null
   }
 }

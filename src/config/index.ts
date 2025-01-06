@@ -18,15 +18,20 @@ export const config = {
     url: process.env.DATABASE_URL || 'file:nhif_registration.db'
   },
   jwt: {
-    secret: process.env.JWT_SECRET || 'fallback_secret_key',
-    expiration: process.env.JWT_EXPIRATION || '24h'
+    secret: process.env.JWT_SECRET || this.generateFallbackSecret(),
+    accessExpiration: process.env.JWT_ACCESS_EXPIRATION || '15m',
+    refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '7d'
   },
-  admin: {
-    initialEmail: process.env.INITIAL_ADMIN_EMAIL || 'dean@dmi.ac.tz',
-    initialPassword: process.env.INITIAL_ADMIN_PASSWORD || 'pass123#'
+  cors: {
+    allowedOrigins: (process.env.ALLOWED_ORIGINS || '').split(',')
   },
-  features: {
-    registration: process.env.ENABLE_REGISTRATION === 'true',
-    export: process.env.ENABLE_EXPORT === 'true'
+  rateLimit: {
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10)
+  },
+  
+  // Fallback secret generation
+  generateFallbackSecret(): string {
+    return crypto.randomBytes(64).toString('hex')
   }
 }
