@@ -1,4 +1,5 @@
-import { z } from 'zod'
+// Use loose typing for zod
+import * as z from 'zod'
 
 // User Registration Validation
 export const UserRegistrationSchema = z.object({
@@ -15,7 +16,7 @@ export const StudentRegistrationSchema = z.object({
   firstName: z.string().min(1, 'First Name is required'),
   middleName: z.string().optional(),
   lastName: z.string().min(1, 'Last Name is required'),
-  dateOfBirth: z.string().refine((dateStr: string) => {
+  dateOfBirth: z.string().refine((dateStr: any) => {
     const birthDate = new Date(dateStr)
     const minAge = new Date()
     minAge.setFullYear(minAge.getFullYear() - 16)
@@ -27,7 +28,7 @@ export const StudentRegistrationSchema = z.object({
   gender: z.enum(['Male', 'Female'], { 
     errorMap: () => ({ message: 'Invalid gender' }) 
   }),
-  admissionDate: z.string().refine((dateStr: string) => {
+  admissionDate: z.string().refine((dateStr: any) => {
     const admission = new Date(dateStr)
     const now = new Date()
     return admission <= now
@@ -47,9 +48,9 @@ export const StudentRegistrationSchema = z.object({
 export function validateData<T>(schema: z.ZodSchema<T>, data: unknown): T {
   try {
     return schema.parse(data)
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
-      const formattedErrors = error.errors.map((err: z.ZodIssue) => ({
+      const formattedErrors = error.errors.map((err: any) => ({
         path: err.path.join('.'),
         message: err.message
       }))
