@@ -24,6 +24,24 @@ interface DatabaseUser {
   createdAt?: Date
 }
 
+// Type guard to ensure string conversion
+function ensureString(value: any, fallback: string = ''): string {
+  return typeof value === 'string' ? value : fallback
+}
+
+// Type guard to ensure date conversion
+function ensureDate(value: any): Date | undefined {
+  if (value instanceof Date) return value
+  if (typeof value === 'string' || typeof value === 'number') {
+    try {
+      return new Date(value)
+    } catch {
+      return undefined
+    }
+  }
+  return undefined
+}
+
 const router = express.Router()
 
 // Student Registration
@@ -103,11 +121,11 @@ router.post('/login', async (req: Request, res: Response) => {
     // Safely convert row to DatabaseUser
     const userRow = result.rows[0]
     const user: DatabaseUser = {
-      id: userRow.id || uuidv4(),
-      email: userRow.email || email,
-      password: userRow.password || '',
-      role: userRow.role || 'STUDENT',
-      createdAt: userRow.createdAt ? new Date(userRow.createdAt) : undefined
+      id: ensureString(userRow.id, uuidv4()),
+      email: ensureString(userRow.email, email),
+      password: ensureString(userRow.password),
+      role: ensureString(userRow.role, 'STUDENT'),
+      createdAt: ensureDate(userRow.createdAt)
     }
 
     // Verify password
