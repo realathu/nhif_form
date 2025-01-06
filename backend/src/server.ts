@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express'
+import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import { config } from './config'
@@ -13,23 +13,18 @@ import logger from './utils/logger'
 
 const app = express()
 
-// Security Middleware
+// Middleware
+app.use(cors({
+  origin: '*', // Be more specific in production
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
 app.use(helmet())
 app.use(globalRateLimiter)
-
-// CORS Configuration
-app.use(cors({
-  origin: config.cors?.allowedOrigins || ['http://localhost:3000'],
-  credentials: true
-}))
-
-// Parse JSON with size limit
-app.use(express.json({
-  limit: '10kb'
-}))
+app.use(express.json({ limit: '10kb' }))
 
 // Logging Middleware
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req, res, next) => {
   logger.info('Request received', {
     method: req.method,
     path: req.path,
@@ -38,24 +33,19 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next()
 })
 
-// Health Check Route
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'healthy' })
-})
-
 // Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/students', authenticateToken, studentRoutes)
 app.use('/api/admin', authenticateToken, adminRoutes)
 app.use('/api/enums', authenticateToken, enumRoutes)
 
+// Health Check Route
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' })
+})
+
 // Global Error Handler
-app.use((
-  err: Error, 
-  req: Request, 
-  res: Response, 
-  next: NextFunction
-) => {
+app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Unhandled error', {
     message: err.message,
     stack: err.stack
@@ -65,6 +55,18 @@ app.use((
     message: config.env === 'production' 
       ? 'An unexpected error occurred' 
       : err.message
+  })
+})
+
+// 404 Handler
+app.use((req, res) => {
+  logger.warn('Route not found', {
+    method: req.method,
+    path: req.path
+  })
+  res.status(404).json({ 
+    message: 'Route not found',
+    path: req.path
   })
 })
 

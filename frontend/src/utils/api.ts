@@ -1,9 +1,9 @@
 import axios from 'axios'
 import { toast } from 'react-hot-toast'
 
-// Create axios instance
+// Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
   headers: {
     'Content-Type': 'application/json'
   }
@@ -70,27 +70,6 @@ export const authApi = {
   
   refreshToken: (refreshToken: string) => 
     api.post('/auth/refresh-token', { refreshToken })
-}
-
-// Student-related API methods
-export const studentApi = {
-  register: (data: any) => 
-    api.post('/students/register', data),
-  
-  getMyRegistration: () => 
-    api.get('/students/my-registration')
-}
-
-// Admin-related API methods
-export const adminApi = {
-  getStudents: (params?: any) => 
-    api.get('/admin/students', { params }),
-  
-  getDashboardStats: () => 
-    api.get('/admin/dashboard'),
-  
-  exportStudents: (data?: any) => 
-    api.post('/admin/export', data)
 }
 
 export default api
