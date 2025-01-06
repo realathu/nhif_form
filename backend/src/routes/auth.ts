@@ -15,6 +15,14 @@ import { validationMiddleware } from '../middleware/validationMiddleware'
 import logger from '../utils/logger'
 import { AuthenticatedRequest } from '../middleware/authMiddleware'
 
+// Define a type for the user object to ensure type safety
+interface User {
+  id: string
+  email: string
+  password: string
+  role: string
+}
+
 const router = express.Router()
 
 // Student Registration
@@ -91,19 +99,23 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' })
     }
 
-    const user = result.rows[0]
+    // Explicitly type the user object
+    const user = result.rows[0] as User
 
-    // Ensure user.password is a string
-    const storedPassword = user.password || ''
+    // Ensure user.password is a string and exists
+    if (!user.password) {
+      logger.warn('User password is missing', { email })
+      return res.status(401).json({ message: 'Invalid credentials' })
+    }
 
     // Verify password
-    if (!comparePassword(password, storedPassword)) {
+    if (!comparePassword(password, user.password)) {
       logger.warn('Failed login attempt', { email })
       return res.status(401).json({ message: 'Invalid credentials' })
     }
 
     // Ensure user.id and user.role are strings
-    const userId = user.id || ''
+    const userId = user.id || uuidv4()
     const userRole = user.role || 'STUDENT'
 
     // Generate token pair
