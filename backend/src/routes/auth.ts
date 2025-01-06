@@ -1,4 +1,5 @@
-import express from 'express'
+import express, { Request, Response } from 'express'
+import { v4 as uuidv4 } from 'uuid'
 import { db } from '../utils/database'
 import { 
   generateTokenPair, 
@@ -6,18 +7,18 @@ import {
   hashPassword, 
   comparePassword 
 } from '../utils/auth'
-import { v4 as uuidv4 } from 'uuid'
 import { UserRegistrationSchema } from '../utils/validation'
 import { validateData } from '../utils/validation'
 import { validationMiddleware } from '../middleware/validationMiddleware'
 import logger from '../utils/logger'
+import { AuthenticatedRequest } from '../middleware/authMiddleware'
 
 const router = express.Router()
 
 // Student Registration
 router.post('/register', 
   validationMiddleware((data) => validateData(UserRegistrationSchema, data)),
-  async (req, res) => {
+  async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body
       
@@ -73,7 +74,7 @@ router.post('/register',
 )
 
 // Login Route
-router.post('/login', async (req, res) => {
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body
 
@@ -125,7 +126,7 @@ router.post('/login', async (req, res) => {
 })
 
 // Refresh Token Route
-router.post('/refresh-token', async (req, res) => {
+router.post('/refresh-token', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body
 
@@ -133,11 +134,33 @@ router.post('/refresh-token', async (req, res) => {
       return res.status(400).json({ message: 'Refresh token required' })
     }
 
-    // Attempt to refresh the token
-    const tokens = await refreshAccessToken(refreshToken)
+    // Verify the refresh token
+    const decoded = jwt.verify(refreshToken, config.jwt.secret) as { 
+      userId: string, 
+      role: string 
+    }
+
+    // Find user
+    const result = await db.execute({
+      sql: 'SELECT * FROM users WHERE id = ?',
+      args: [decoded.userId]
+    })
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ message: 'Invalid user' })
+    }
+
+    // Generate new token pair
+    const { 
+      accessToken: newAccessToken, 
+      refreshToken: newRefreshToken 
+    } = generateTokenPair(decoded.userId, decoded.role)
 
     logger.info('Token refreshed successfully')
-    res.json(tokens)
+    res.json({ 
+      accessToken: newAccessToken, 
+      refreshToken: newRefreshToken 
+    })
   } catch (error) {
     logger.error('Token refresh failed', { error: String(error) })
     res.status(401).json({ message: 'Invalid refresh token' })
@@ -145,7 +168,7 @@ router.post('/refresh-token', async (req, res) => {
 })
 
 // Get User Profile
-router.get('/profile', async (req, res) => {
+router.get('/profile', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.userId
 
