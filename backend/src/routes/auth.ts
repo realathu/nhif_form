@@ -1,6 +1,8 @@
 import express, { Request, Response } from 'express'
+import jwt from 'jsonwebtoken'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '../utils/database'
+import { config } from '../config'
 import { 
   generateTokenPair, 
   storeRefreshToken, 
@@ -91,30 +93,37 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const user = result.rows[0]
 
+    // Ensure user.password is a string
+    const storedPassword = user.password || ''
+
     // Verify password
-    if (!comparePassword(password, user.password)) {
+    if (!comparePassword(password, storedPassword)) {
       logger.warn('Failed login attempt', { email })
       return res.status(401).json({ message: 'Invalid credentials' })
     }
 
+    // Ensure user.id and user.role are strings
+    const userId = user.id || ''
+    const userRole = user.role || 'STUDENT'
+
     // Generate token pair
-    const { accessToken, refreshToken } = generateTokenPair(user.id, user.role)
+    const { accessToken, refreshToken } = generateTokenPair(userId, userRole)
     
     // Store refresh token
-    await storeRefreshToken(user.id, refreshToken)
+    await storeRefreshToken(userId, refreshToken)
 
     logger.info('User logged in successfully', { 
-      userId: user.id, 
+      userId, 
       email, 
-      role: user.role 
+      role: userRole 
     })
 
     res.json({ 
       accessToken, 
       refreshToken, 
-      userId: user.id, 
+      userId, 
       email, 
-      role: user.role 
+      role: userRole 
     })
   } catch (error) {
     logger.error('Login failed', { 
