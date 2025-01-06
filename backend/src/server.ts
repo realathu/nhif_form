@@ -1,4 +1,4 @@
-wimport express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import { config } from './config'
@@ -13,17 +13,23 @@ import logger from './utils/logger'
 
 const app = express()
 
-// Middleware
+// Security Middleware
 app.use(helmet())
 app.use(globalRateLimiter)
+
+// CORS Configuration
 app.use(cors({
-  origin: config.cors.allowedOrigins,
+  origin: config.cors?.allowedOrigins || ['http://localhost:3000'],
   credentials: true
 }))
-app.use(express.json({ limit: '10kb' }))
+
+// Parse JSON with size limit
+app.use(express.json({
+  limit: '10kb'
+}))
 
 // Logging Middleware
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   logger.info('Request received', {
     method: req.method,
     path: req.path,
@@ -33,7 +39,7 @@ app.use((req, res, next) => {
 })
 
 // Health Check Route
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy' })
 })
 
@@ -44,7 +50,12 @@ app.use('/api/admin', authenticateToken, adminRoutes)
 app.use('/api/enums', authenticateToken, enumRoutes)
 
 // Global Error Handler
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((
+  err: Error, 
+  req: Request, 
+  res: Response, 
+  next: NextFunction
+) => {
   logger.error('Unhandled error', {
     message: err.message,
     stack: err.stack
