@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Mobile-first input styles */
+  input, select, textarea {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    tap-highlight-color: transparent;
+    
+    /* Ensure minimum touch target size */
+    min-height: 44px;
+    min-width: 44px;
+    
+    /* Prevent iOS zoom on focus */
+    font-size: 16px !important;
+  }
+
+  /* Disable default browser styling */
+  input:focus, 
+  select:focus, 
+  textarea:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  }
+
+  /* Remove number input arrows */
+  input[type=number]::-webkit-inner-spin-button, 
+  input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+  }
+}
+
+@layer utilities {
+  /* Mobile-friendly touch targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Prevent text selection and highlight */
+  .no-tap-highlight {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+
+/* Responsive form layout */
+@screen xs {
+  .form-grid {
+    @apply grid grid-cols-1 gap-4;
+  }
+}
+
+@screen sm {
+  .form-grid {
+    @apply grid grid-cols-2 gap-6;
+  }
+}

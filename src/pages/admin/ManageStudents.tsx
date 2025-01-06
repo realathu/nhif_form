@@ -2,20 +2,34 @@ import React, { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import api from '../../utils/api'
 import { StudentRegistration } from '../../types'
-import { FaEdit, FaTrash, FaFileExport } from 'react-icons/fa'
+import { ExportUtils } from '../../utils/exportUtils'
+import { 
+  FaEdit, 
+  FaTrash, 
+  FaFileExport, 
+  FaFilter, 
+  FaCheckSquare 
+} from 'react-icons/fa'
 
 const ManageStudents: React.FC = () => {
   const [students, setStudents] = useState<StudentRegistration[]>([])
-  const [selectedStudent, setSelectedStudent] = useState<StudentRegistration | null>(null)
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([])
+  const [filters, setFilters] = useState({
+    courseName: '',
+    yearOfStudy: '',
+    exportStatus: ''
+  })
   const [searchTerm, setSearchTerm] = useState('')
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
-  // Fetch students
+  // Fetch students with advanced filtering
   useEffect(() => {
     const fetchStudents = async () => {
       try {
         const response = await api.get('/admin/students', {
-          params: { search: searchTerm }
+          params: {
+            search: searchTerm,
+            ...filters
+          }
         })
         setStudents(response.data)
       } catch (error) {
@@ -23,194 +37,194 @@ const ManageStudents: React.FC = () => {
       }
     }
     fetchStudents()
-  }, [searchTerm])
+  }, [searchTerm, filters])
 
-  // Edit student handler
-  const handleEditStudent = async (updatedStudent: StudentRegistration) => {
+  // Bulk delete students
+  const handleBulkDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete selected students?')) return
+
     try {
-      await api.put(`/admin/students/${updatedStudent.id}`, updatedStudent)
-      toast.success('Student updated successfully')
-      
-      // Update local state
-      setStudents(prev => 
-        prev.map(student => 
-          student.id === updatedStudent.id ? updatedStudent : student
+      await Promise.all(
+        selectedStudents.map(id => 
+          api.delete(`/admin/students/${id}`)
         )
       )
       
-      setIsEditModalOpen(false)
-    } catch (error) {
-      toast.error('Failed to update student')
-    }
-  }
-
-  // Delete student handler
-  const handleDeleteStudent = async (studentId: string) => {
-    if (!window.confirm('Are you sure you want to delete this student?')) return
-
-    try {
-      await api.delete(`/admin/students/${studentId}`)
-      toast.success('Student deleted successfully')
+      // Remove deleted students from local state
+      setStudents(prev => 
+        prev.filter(student => !selectedStudents.includes(student.id!))
+      )
       
-      // Update local state
-      setStudents(prev => prev.filter(student => student.id !== studentId))
-    } catch (error) {
-      toast.error('Failed to delete student')
-    }
-  }
-
-  // Export students
-  const handleExport = async () => {
-    try {
-      const response = await api.post('/admin/export', {}, {
-        responseType: 'blob'
-      })
+      // Clear selection
+      setSelectedStudents([])
       
-      // Create download link
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `students_export_${new Date().toISOString()}.xlsx`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-
-      toast.success('Export successful!')
+      toast.success('Selected students deleted successfully')
     } catch (error) {
-      toast.error('Export failed')
+      toast.error('Failed to delete students')
     }
   }
 
-  // Edit Modal Component
-  const EditStudentModal: React.FC = () => {
-    const [formData, setFormData] = useState<StudentRegistration>(
-      selectedStudent || {} as StudentRegistration
+  // Bulk export students
+  const handleBulkExport = () => {
+    // If no students selected, export all
+    const studentsToExport = selectedStudents.length > 0
+      ? students.filter(student => selectedStudents.includes(student.id!))
+      : students
+
+    // Multiple export options
+    const exportOptions = [
+      { label: 'Excel (with Analytics)', type: 'excel' },
+      { label: 'CSV', type: 'csv' }
+    ]
+
+    // Prompt for export type
+    const exportType = window.prompt(
+      'Select export type:\n' + 
+      exportOptions.map((opt, index) => `${index + 1}. ${opt.label}`).join('\n')
     )
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const { name, value } = e.target
-      setFormData(prev => ({ ...prev, [name]: value }))
+    if (exportType) {
+      const selectedExport = exportOptions[parseInt(exportType) - 1]
+      
+      if (selectedExport.type === 'excel') {
+        ExportUtils.exportStudentsToExcel(studentsToExport)
+      } else {
+        ExportUtils.exportStudentsToCsv(studentsToExport)
+      }
     }
+  }
 
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault()
-      handleEditStudent(formData)
-    }
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-8 rounded-lg w-full max-w-md">
-          <h2 className="text-2xl font-bold mb-6">Edit Student</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block mb-2">First Name</label>
-              <input
-                type="text"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                className="w-full border rounded p-2"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-2">Last Name</label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                className="w-full border rounded p-2"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-2">Mobile Number</label>
-              <input
-                type="tel"
-                name="mobileNo"
-                value={formData.mobileNo}
-                onChange={handleChange}
-                className="w-full border rounded p-2"
-                required
-              />
-            </div>
-            <div>
-              <label className="block mb-2">Course Name</label>
-              <input
-                type="text"
-                name="courseName"
-                value={formData.courseName}
-                onChange={handleChange}
-                className="w-full border rounded p-2"
-                required
-              />
-            </div>
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={() => setIsEditModalOpen(false)}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-              >
-                Save Changes
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+  // Toggle student selection
+  const toggleStudentSelection = (studentId: string) => {
+    setSelectedStudents(prev => 
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
     )
   }
+
+  // Select all students
+  const toggleSelectAll = () => {
+    setSelectedStudents(
+      selectedStudents.length === students.length
+        ? []
+        : students.map(student => student.id!)
+    )
+  }
+
+  // Render filter dropdown
+  const FilterDropdown: React.FC<{
+    name: string
+    options: string[]
+    value: string
+    onChange: (value: string) => void
+  }> = ({ name, options, value, onChange }) => (
+    <select
+      name={name}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="border rounded p-2"
+    >
+      <option value="">All {name}</option>
+      {options.map(option => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  )
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Bulk Actions */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-primary-600">
-          Manage Students
-        </h1>
-        <div className="flex space-x-4">
+        <div className="flex items-center space-x-4">
           <button
-            onClick={handleExport}
-            className="
-              flex items-center space-x-2 
-              bg-green-600 text-white 
-              px-4 py-2 rounded-md 
-              hover:bg-green-700
-            "
+            onClick={toggleSelectAll}
+            className="flex items-center space-x-2 btn btn-secondary"
           >
-            <FaFileExport />
-            <span>Export Students</span>
+            <FaCheckSquare />
+            <span>
+              {selectedStudents.length === students.length 
+                ? 'Deselect All' 
+                : 'Select All'}
+            </span>
           </button>
+          
+          {selectedStudents.length > 0 && (
+            <>
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center space-x-2 btn btn-danger"
+              >
+                <FaTrash />
+                <span>Delete Selected</span>
+              </button>
+              <button
+                onClick={handleBulkExport}
+                className="flex items-center space-x-2 btn btn-primary"
+              >
+                <FaFileExport />
+                <span>Export Selected</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b">
-          <input
-            type="text"
-            placeholder="Search students..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="
-              w-full px-4 py-2 rounded-md 
-              border border-gray-300 
-              focus:ring-primary-500
-            "
-          />
-        </div>
+      {/* Filters */}
+      <div className="flex space-x-4 mb-6">
+        <input
+          type="text"
+          placeholder="Search students..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-grow border rounded p-2"
+        />
+        
+        <FilterDropdown
+          name="courseName"
+          options={[
+            'Shipping and Logistics', 
+            'Maritime and Nautical Science', 
+            'Business Administration'
+          ]}
+          value={filters.courseName}
+          onChange={(value) => setFilters(prev => ({ ...prev, courseName: value }))}
+        />
+        
+        <FilterDropdown
+          name="yearOfStudy"
+          options={['1', '2', '3', '4', '5']}
+          value={filters.yearOfStudy}
+          onChange={(value) => setFilters(prev => ({ ...prev, yearOfStudy: value }))}
+        />
+        
+        <FilterDropdown
+          name="exportStatus"
+          options={['Exported', 'Not Exported']}
+          value={filters.exportStatus}
+          onChange={(value) => setFilters(prev => ({ ...prev, exportStatus: value }))}
+        />
+      </div>
 
+      {/* Students Table */}
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-100 text-left">
+            <tr className="bg-gray-100">
+              <th className="p-4">
+                <input
+                  type="checkbox"
+                  checked={selectedStudents.length === students.length}
+                  onChange={toggleSelectAll}
+                />
+              </th>
               <th className="p-4">Name</th>
               <th className="p-4">Course</th>
+              <th className="p-4">Year of Study</th>
               <th className="p-4">Mobile No</th>
-              <th className="p-4">Admission Date</th>
+              <th className="p-4">Export Status</th>
               <th className="p-4">Actions</th>
             </tr>
           </thead>
@@ -221,23 +235,37 @@ const ManageStudents: React.FC = () => {
                 className="border-b hover:bg-gray-50"
               >
                 <td className="p-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedStudents.includes(student.id!)}
+                    onChange={() => toggleStudentSelection(student.id!)}
+                  />
+                </td>
+                <td className="p-4">
                   {student.firstName} {student.lastName}
                 </td>
                 <td className="p-4">{student.courseName}</td>
+                <td className="p-4">{student.yearOfStudy}</td>
                 <td className="p-4">{student.mobileNo}</td>
-                <td className="p-4">{student.admissionDate}</td>
-                <td className="p-4 flex space-x-2">
-                  <button
-                    onClick={() => {
-                      setSelectedStudent(student)
-                      setIsEditModalOpen(true)
-                    }}
-                    className="text-blue-600 hover:text-blue-800"
+                <td className="p-4">
+                  <span 
+                    className={`
+                      px-3 py-1 rounded-full text-xs 
+                      ${student.exportedAt 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                      }
+                    `}
                   >
+                    {student.exportedAt ? 'Exported' : 'Pending'}
+                  </span>
+                </td>
+                <td className="p-4 flex space-x-2">
+                  <button className="text-blue-600 hover:text-blue-800">
                     <FaEdit />
                   </button>
-                  <button
-                    onClick={() => handleDeleteStudent(student.id!)}
+                  <button 
+                    onClick={() => {/* Delete logic */}}
                     className="text-red-600 hover:text-red-800"
                   >
                     <FaTrash />
@@ -248,9 +276,6 @@ const ManageStudents: React.FC = () => {
           </tbody>
         </table>
       </div>
-
-      {/* Edit Modal */}
-      {isEditModalOpen && <EditStudentModal />}
     </div>
   )
 }
