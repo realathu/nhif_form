@@ -83,8 +83,36 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/admin/students/reports" 
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <StudentReports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/settings/enums" 
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <EnumManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/settings/admin-accounts" 
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminAccounts />
+              </ProtectedRoute>
+            } 
+          />
 
-          {/* Other routes remain the same */}
+          {/* Default Redirect */}
+          <Route 
+            path="*" 
+            element={<Navigate to="/login" replace />} 
+          />
         </Routes>
         <Toaster />
       </Router>

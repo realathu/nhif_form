@@ -3,7 +3,8 @@ import { db } from '../utils/database'
 import { 
   generateTokenPair, 
   storeRefreshToken, 
-  refreshAccessToken 
+  hashPassword, 
+  comparePassword 
 } from '../utils/auth'
 import { v4 as uuidv4 } from 'uuid'
 import { UserRegistrationSchema } from '../utils/validation'
@@ -13,12 +14,15 @@ import logger from '../utils/logger'
 
 const router = express.Router()
 
-// Registration with validation
+// Student Registration
 router.post('/register', 
   validationMiddleware((data) => validateData(UserRegistrationSchema, data)),
   async (req, res) => {
     try {
-      const { email, password, role } = req.body
+      const { email, password } = req.body
+      
+      // Always set role to STUDENT for this route
+      const role = 'STUDENT'
       
       // Check for existing user
       const existingUser = await db.execute({
@@ -28,7 +32,7 @@ router.post('/register',
 
       if (existingUser.rows.length > 0) {
         logger.warn('Registration attempt with existing email', { email })
-        return res.status(400).json({ message: 'User already exists' })
+        return res.status(400).json({ message: 'User with this email already exists' })
       }
 
       // Create user
@@ -46,10 +50,9 @@ router.post('/register',
       // Store refresh token
       await storeRefreshToken(userId, refreshToken)
 
-      logger.info('User registered successfully', { 
+      logger.info('Student registered successfully', { 
         userId, 
-        email, 
-        role 
+        email 
       })
 
       res.status(201).json({ 
@@ -68,76 +71,5 @@ router.post('/register',
     }
   }
 )
-
-// Login with enhanced logging
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body
-
-    const result = await db.execute({
-      sql: 'SELECT * FROM users WHERE email = ?',
-      args: [email]
-    })
-
-    if (result.rows.length === 0) {
-      logger.warn('Login attempt with non-existent email', { email })
-      return res.status(401).json({ message: 'Invalid credentials' })
-    }
-
-    const user = result.rows[0]
-    const isPasswordValid = comparePassword(password, user.password)
-
-    if (!isPasswordValid) {
-      logger.warn('Failed login attempt', { email })
-      return res.status(401).json({ message: 'Invalid credentials' })
-    }
-
-    // Generate token pair
-    const { accessToken, refreshToken } = generateTokenPair(user.id, user.role)
-    
-    // Store refresh token
-    await storeRefreshToken(user.id, refreshToken)
-
-    logger.info('User logged in successfully', { 
-      userId: user.id, 
-      email, 
-      role: user.role 
-    })
-
-    res.json({ 
-      accessToken, 
-      refreshToken, 
-      userId: user.id, 
-      email, 
-      role: user.role 
-    })
-  } catch (error) {
-    logger.error('Login failed', { 
-      error: String(error),
-      email: req.body.email 
-    })
-    res.status(500).json({ message: 'Login failed' })
-  }
-})
-
-// Refresh Token Route
-router.post('/refresh-token', async (req, res) => {
-  try {
-    const { refreshToken } = req.body
-
-    if (!refreshToken) {
-      logger.warn('Refresh token request without token')
-      return res.status(400).json({ message: 'Refresh token required' })
-    }
-
-    const tokens = await refreshAccessToken(refreshToken)
-
-    logger.info('Token refreshed successfully')
-    res.json(tokens)
-  } catch (error) {
-    logger.error('Token refresh failed', { error: String(error) })
-    res.status(401).json({ message: 'Invalid refresh token' })
-  }
-})
 
 export default router

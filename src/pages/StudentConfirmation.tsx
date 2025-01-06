@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FaCheckCircle, FaPrint, FaDownload } from 'react-icons/fa'
+import { FaCheckCircle, FaPrint, FaDownload, FaQrcode } from 'react-icons/fa'
+import QRCode from 'qrcode.react'
 import api from '../utils/api'
 import { StudentRegistration } from '../types'
 
@@ -53,53 +54,72 @@ const StudentConfirmation: React.FC = () => {
   if (!studentData) return <div>Loading...</div>
 
   return (
-    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden">
-        <div className="bg-green-500 text-white p-6 text-center">
+    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8 print:bg-white">
+      <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden print:shadow-none">
+        <div className="bg-green-500 text-white p-6 text-center print:hidden">
           <FaCheckCircle className="mx-auto text-6xl mb-4" />
           <h1 className="text-3xl font-bold">Registration Successful!</h1>
+          <p className="mt-2">Your NHIF registration information has been submitted</p>
         </div>
 
         <div className="p-8">
           <div className="grid md:grid-cols-2 gap-6">
+            {/* Personal Details */}
             <div>
-              <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+              <h2 className="text-xl font-semibold mb-4 border-b pb-2 print:border-b-0">
                 Personal Details
               </h2>
               <div className="space-y-2">
-                <p><strong>Name:</strong> {studentData.firstName} {studentData.lastName}</p>
+                <p><strong>Full Name:</strong> {studentData.firstName} {studentData.middleName || ''} {studentData.lastName}</p>
                 <p><strong>Date of Birth:</strong> {studentData.dateOfBirth}</p>
                 <p><strong>Gender:</strong> {studentData.gender}</p>
+                <p><strong>Marital Status:</strong> {studentData.maritalStatus}</p>
                 <p><strong>Mobile Number:</strong> {studentData.mobileNo}</p>
+                <p><strong>National ID:</strong> {studentData.nationalID}</p>
               </div>
             </div>
 
+            {/* Academic Details */}
             <div>
-              <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+              <h2 className="text-xl font-semibold mb-4 border-b pb-2 print:border-b-0">
                 Academic Details
               </h2>
               <div className="space-y-2">
                 <p><strong>Course:</strong> {studentData.courseName}</p>
+                <p><strong>Faculty:</strong> {studentData.collegeFaculty}</p>
                 <p><strong>Admission Date:</strong> {studentData.admissionDate}</p>
                 <p><strong>Year of Study:</strong> {studentData.yearOfStudy}</p>
+                <p><strong>Course Duration:</strong> {studentData.courseDuration} years</p>
                 <p><strong>Admission Number:</strong> {studentData.admissionNo}</p>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 bg-blue-50 p-4 rounded-lg">
-            <h3 className="text-xl font-semibold text-blue-800 mb-2">
-              NHIF Registration Control Number
-            </h3>
-            <div className="text-2xl font-bold text-blue-600 text-center">
-              {controlNumber}
+          {/* Control Number and QR Code */}
+          <div className="mt-8 bg-blue-50 p-4 rounded-lg grid md:grid-cols-2 items-center">
+            <div>
+              <h3 className="text-xl font-semibold text-blue-800 mb-2">
+                NHIF Registration Control Number
+              </h3>
+              <div className="text-2xl font-bold text-blue-600 mb-2">
+                {controlNumber}
+              </div>
+              <p className="text-sm text-blue-600">
+                Please keep this control number for future reference
+              </p>
             </div>
-            <p className="text-sm text-blue-600 text-center mt-2">
-              Please keep this control number for future reference
-            </p>
+            <div className="flex justify-center print:hidden">
+              <QRCode 
+                value={controlNumber || ''} 
+                size={150} 
+                level={'H'} 
+                includeMargin={true}
+              />
+            </div>
           </div>
 
-          <div className="mt-8 flex justify-center space-x-4">
+          {/* Action Buttons */}
+          <div className="mt-8 flex justify-center space-x-4 print:hidden">
             <button
               onClick={handlePrint}
               className="
