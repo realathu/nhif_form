@@ -1,10 +1,13 @@
-const { db } = require('../dist/utils/database')
-const logger = require('../dist/utils/logger').default
+import { createClient } from '@libsql/client'
+import { config } from '../config'
+import logger from './logger'
 
-async function runMigrations() {
+export const db = createClient({
+  url: config.database.url
+})
+
+export async function initializeDatabase() {
   try {
-    console.log('Running database migrations...')
-    
     // Users table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS users (
@@ -16,7 +19,7 @@ async function runMigrations() {
       )
     `)
 
-    // Student Registrations table
+    // Student registrations table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS student_registrations (
         id TEXT PRIMARY KEY,
@@ -36,29 +39,14 @@ async function runMigrations() {
         courseDuration INTEGER,
         nationalID TEXT,
         admissionNo TEXT,
-        exportedAt DATETIME,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(userId) REFERENCES users(id)
       )
     `)
 
-    // Refresh Tokens table
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS refresh_tokens (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        token TEXT NOT NULL,
-        expires_at DATETIME NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-      )
-    `)
-
-    console.log('Migrations completed successfully')
+    logger.info('Database initialized successfully')
   } catch (error) {
-    console.error('Migration failed:', error)
-    process.exit(1)
+    logger.error('Database initialization failed', { error: String(error) })
+    throw error
   }
 }
-
-runMigrations()
