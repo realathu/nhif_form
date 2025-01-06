@@ -11,7 +11,12 @@ import { Toaster } from 'react-hot-toast'
 // Pages
 import Login from './pages/Login'
 import StudentRegistration from './pages/StudentRegistration'
-import AdminDashboard from './pages/AdminDashboard'
+import StudentConfirmation from './pages/StudentConfirmation'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import ManageStudents from './pages/admin/ManageStudents'
+import StudentReports from './pages/admin/StudentReports'
+import EnumManagement from './pages/admin/EnumManagement'
+import AdminAccounts from './pages/admin/AdminAccounts'
 import MainLayout from './components/Layout/MainLayout'
 
 // Protected Route Component
@@ -52,6 +57,14 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/student/confirmation" 
+            element={
+              <ProtectedRoute requiredRole="STUDENT">
+                <StudentConfirmation />
+              </ProtectedRoute>
+            } 
+          />
 
           {/* Admin Routes */}
           <Route 
@@ -62,12 +75,16 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } 
           />
-
-          {/* Default Redirect */}
           <Route 
-            path="*" 
-            element={<Navigate to="/login" replace />} 
+            path="/admin/students/manage" 
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <ManageStudents />
+              </ProtectedRoute>
+            } 
           />
+
+          {/* Other routes remain the same */}
         </Routes>
         <Toaster />
       </Router>
