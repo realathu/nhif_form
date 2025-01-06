@@ -15,8 +15,8 @@ export const StudentRegistrationSchema = z.object({
   firstName: z.string().min(1, 'First Name is required'),
   middleName: z.string().optional(),
   lastName: z.string().min(1, 'Last Name is required'),
-  dateOfBirth: z.string().refine(date => {
-    const birthDate = new Date(date)
+  dateOfBirth: z.string().refine((dateStr: string) => {
+    const birthDate = new Date(dateStr)
     const minAge = new Date()
     minAge.setFullYear(minAge.getFullYear() - 16)
     return birthDate <= minAge
@@ -27,8 +27,8 @@ export const StudentRegistrationSchema = z.object({
   gender: z.enum(['Male', 'Female'], { 
     errorMap: () => ({ message: 'Invalid gender' }) 
   }),
-  admissionDate: z.string().refine(date => {
-    const admission = new Date(date)
+  admissionDate: z.string().refine((dateStr: string) => {
+    const admission = new Date(dateStr)
     const now = new Date()
     return admission <= now
   }, { message: 'Admission date cannot be in the future' }),
@@ -49,7 +49,7 @@ export function validateData<T>(schema: z.ZodSchema<T>, data: unknown): T {
     return schema.parse(data)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const formattedErrors = error.errors.map(err => ({
+      const formattedErrors = error.errors.map((err: z.ZodIssue) => ({
         path: err.path.join('.'),
         message: err.message
       }))
