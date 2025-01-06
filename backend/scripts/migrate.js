@@ -16,6 +16,18 @@ async function runMigrations() {
       )
     `)
 
+    // Refresh Tokens table (CRITICAL FIX)
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      )
+    `)
+
     // Student Registrations table
     await db.execute(`
       CREATE TABLE IF NOT EXISTS student_registrations (
@@ -42,17 +54,10 @@ async function runMigrations() {
       )
     `)
 
-    // Refresh Tokens table
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS refresh_tokens (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        token TEXT NOT NULL,
-        expires_at DATETIME NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-      )
-    `)
+    // Optional: Clear existing data if needed
+    // await db.execute('DELETE FROM users')
+    // await db.execute('DELETE FROM refresh_tokens')
+    // await db.execute('DELETE FROM student_registrations')
 
     console.log('Migrations completed successfully')
   } catch (error) {
