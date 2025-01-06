@@ -1,38 +1,55 @@
 # NHIF Student Registration System - Deployment Guide
 
-## Table of Contents
-1. [Prerequisites](#prerequisites)
-2. [Local Development Setup](#local-development-setup)
-3. [Production Deployment](#production-deployment)
-4. [Server Requirements](#server-requirements)
-5. [Configuration](#configuration)
-6. [Security Considerations](#security-considerations)
-7. [Troubleshooting](#troubleshooting)
+[... Previous content remains the same ...]
 
-## Prerequisites
+## macOS Deployment Guide
 
-### Software Requirements
-- Node.js (v18+ recommended)
+### Prerequisites for macOS
+
+#### Software Requirements
+- Homebrew (Package Manager)
+- Node.js (v18+)
 - npm (v9+)
-- Docker (v20+)
-- Docker Compose (v2+)
-- Git
+- Docker Desktop for Mac
+- Xcode Command Line Tools
 
-### Server Specifications
-- Minimum 2 CPU cores
-- 4GB RAM
-- 20GB Disk Space
-- Ubuntu 20.04+ or similar Linux distribution
-
-## Local Development Setup
-
-### 1. Clone the Repository
+### 1. Install Homebrew
 ```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+### 2. Install Required Tools
+```bash
+# Update Homebrew
+brew update
+
+# Install Node.js
+brew install node@18
+
+# Install Git
+brew install git
+
+# Install Docker Desktop
+# Download from: https://www.docker.com/products/docker-desktop
+```
+
+### 3. Xcode Command Line Tools
+```bash
+xcode-select --install
+```
+
+### 4. Clone Repository
+```bash
+# Create projects directory
+mkdir -p ~/Projects
+cd ~/Projects
+
+# Clone the repository
 git clone https://github.com/your-organization/nhif-registration-system.git
 cd nhif-registration-system
 ```
 
-### 2. Backend Setup
+### 5. Backend Setup
 ```bash
 # Navigate to backend directory
 cd backend
@@ -43,20 +60,14 @@ npm install
 # Create environment file
 cp .env.example .env
 
-# Edit environment variables
+# Generate JWT Secret
+JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
+
+# Edit .env file
 nano .env
 ```
 
-#### Environment Variables
-- `NODE_ENV`: Set to `development`
-- `PORT`: Backend server port (default: 5000)
-- `DATABASE_URL`: Path to SQLite database
-- `JWT_SECRET`: Generate a secure random secret
-  ```bash
-  node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-  ```
-
-### 3. Frontend Setup
+### 6. Frontend Setup
 ```bash
 # Navigate to frontend directory
 cd ../frontend
@@ -71,7 +82,9 @@ cp .env.example .env
 nano .env
 ```
 
-### 4. Start Development Servers
+### 7. Local Development
+
+#### Start Development Servers
 ```bash
 # Backend (in backend directory)
 npm run dev
@@ -80,189 +93,163 @@ npm run dev
 npm run dev
 ```
 
-## Production Deployment
+### 8. Docker Deployment on macOS
 
-### Preparation
+#### Configure Docker Desktop
+1. Open Docker Desktop
+2. Go to Preferences > Resources
+3. Allocate sufficient CPU and Memory
+   - Recommended: 4 CPU, 8GB RAM
 
-#### 1. Server Preparation
-```bash
-# Update system packages
-sudo apt update && sudo apt upgrade -y
-
-# Install required packages
-sudo apt install -y docker docker-compose nginx certbot python3-certbot-nginx
-```
-
-#### 2. Clone Repository on Production Server
-```bash
-git clone https://github.com/your-organization/nhif-registration-system.git
-cd nhif-registration-system
-```
-
-#### 3. SSL Certificate Generation
-```bash
-# Stop any existing web services
-sudo systemctl stop nginx
-
-# Generate SSL certificate
-sudo certbot certonly --standalone -d yourdomain.com
-
-# Configure nginx with SSL
-sudo nano /etc/nginx/sites-available/nhif-registration
-```
-
-#### 4. Configure Environment
-```bash
-# Create production environment file
-cp .env.production .env
-
-# Edit environment variables
-nano .env
-
-# Generate secure JWT secret
-JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
-```
-
-### Deployment Steps
-
-#### 5. Build and Deploy
+#### Build and Run Containers
 ```bash
 # Build Docker containers
-docker-compose -f docker-compose.prod.yml build
+docker-compose -f docker-compose.yml build
 
 # Start containers
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose up -d
 
 # Run database migrations
 docker-compose exec backend npm run migrate
 ```
 
-#### 6. Nginx Configuration
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
-    return 301 https://$server_name$request_uri;
-}
+### 9. Accessing the Application
+- Backend: `http://localhost:5000`
+- Frontend: `http://localhost:3000`
 
-server {
-    listen 443 ssl;
-    server_name yourdomain.com;
+### 10. Development Workflow
 
-    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+#### Git Workflow
+```bash
+# Create a new feature branch
+git checkout -b feature/your-feature-name
 
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
+# Commit changes
+git add .
+git commit -m "Description of changes"
 
-    location /api {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
+# Push to remote
+git push origin feature/your-feature-name
 ```
 
-### 7. Automated Backup
+### 11. Performance Optimization
+
+#### Cleaning Docker Resources
 ```bash
-# Create backup script
-nano /path/to/backup.sh
+# Remove unused containers
+docker system prune -f
 
-# Add backup script content
-#!/bin/bash
-BACKUP_DIR="/path/to/backups"
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-docker-compose exec backend sqlite3 /path/to/database/nhif.db ".backup '$BACKUP_DIR/nhif_backup_$TIMESTAMP.db'"
-
-# Make script executable
-chmod +x /path/to/backup.sh
-
-# Set up cron job for daily backups
-(crontab -l 2>/dev/null; echo "0 2 * * * /path/to/backup.sh") | crontab -
+# Remove unused volumes
+docker volume prune -f
 ```
 
-## Security Considerations
+### 12. Debugging on macOS
 
-### 1. Firewall Configuration
+#### Check Logs
 ```bash
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-```
-
-### 2. Regular Updates
-```bash
-# Automatic security updates
-sudo dpkg-reconfigure --priority=low unattended-upgrades
-```
-
-### 3. Fail2Ban Installation
-```bash
-sudo apt install fail2ban
-sudo systemctl enable fail2ban
-sudo systemctl start fail2ban
-```
-
-## Troubleshooting
-
-### Common Issues
-- Check Docker logs: `docker-compose logs backend`
-- Verify container status: `docker-compose ps`
-- Restart services: `docker-compose restart`
-
-### Debugging
-```bash
-# View backend logs
+# Backend logs
 docker-compose logs backend
 
-# View frontend logs
+# Frontend logs
 docker-compose logs frontend
 
-# Check network connectivity
-docker network ls
-docker network inspect nhif-registration-network
+# System logs
+log show --predicate 'process == "docker"' --last 1h
 ```
 
-## Maintenance
+### 13. SSL Configuration for Local Development
 
-### Database Migrations
+#### Generate Self-Signed Certificate
 ```bash
-# Run migrations
-docker-compose exec backend npm run migrate
+# Install mkcert
+brew install mkcert
 
-# Rollback migrations
-docker-compose exec backend npm run migrate:rollback
+# Install local CA
+mkcert -install
+
+# Generate certificates
+mkdir -p ./nginx/ssl
+mkcert -key-file ./nginx/ssl/key.pem -cert-file ./nginx/ssl/cert.pem localhost
 ```
 
-### Updating the Application
+### 14. Backup Strategy
+
+#### Local Backup Script
 ```bash
-# Pull latest changes
-git pull origin main
+#!/bin/bash
 
-# Rebuild and restart
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml build
-docker-compose -f docker-compose.prod.yml up -d
+# Create backup directory
+mkdir -p ~/Projects/nhif-backups
+
+# Backup database
+docker-compose exec backend sqlite3 /path/to/database/nhif.db ".backup '~/Projects/nhif-backups/nhif_backup_$(date +"%Y%m%d_%H%M%S").db'"
 ```
 
-## Monitoring
+### 15. Performance Monitoring
 
-### Performance Monitoring
-- Use `htop` for system resources
-- Docker stats: `docker stats`
-- Nginx logs: `/var/log/nginx/access.log`
+#### macOS System Monitor
+- Use Activity Monitor (Applications > Utilities)
+- Monitor CPU, Memory, Energy, Disk, Network
+
+#### Docker Desktop Monitoring
+- Use built-in container and resource monitoring
+
+### 16. Common macOS-Specific Troubleshooting
+
+#### Port Conflicts
+```bash
+# Find processes using specific ports
+sudo lsof -i :5000
+sudo lsof -i :3000
+
+# Kill processes if needed
+kill -9 <PID>
+```
+
+#### Network Issues
+```bash
+# Flush DNS cache
+sudo killall -HUP mDNSResponder
+
+# Renew IP
+sudo ipconfig set en0 DHCP
+```
+
+### 17. Continuous Integration
+
+#### GitHub Actions for macOS
+- Create `.github/workflows/macos.yml` for CI/CD
+
+```yaml
+name: macOS CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+    
+    - name: Install Dependencies
+      run: |
+        npm ci
+        npm run build
+    
+    - name: Run Tests
+      run: npm test
+```
+
+## Conclusion
+This guide provides a comprehensive approach to developing and deploying the NHIF Registration System on macOS. Always ensure you're following the latest security best practices and keeping your dependencies up to date.
 
 ## License
 [Your License Here]
 
 ## Support
-For support, please contact [your support email/contact]
+For macOS-specific support, contact [your support email/contact]
