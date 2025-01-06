@@ -15,12 +15,13 @@ import { validationMiddleware } from '../middleware/validationMiddleware'
 import logger from '../utils/logger'
 import { AuthenticatedRequest } from '../middleware/authMiddleware'
 
-// Define a type for the user object to ensure type safety
-interface User {
+// Explicitly define the User interface to match database row
+interface DatabaseUser {
   id: string
   email: string
   password: string
   role: string
+  createdAt?: Date
 }
 
 const router = express.Router()
@@ -99,43 +100,40 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' })
     }
 
-    // Explicitly type the user object
-    const user = result.rows[0] as User
-
-    // Ensure user.password is a string and exists
-    if (!user.password) {
-      logger.warn('User password is missing', { email })
-      return res.status(401).json({ message: 'Invalid credentials' })
+    // Safely convert row to DatabaseUser
+    const userRow = result.rows[0]
+    const user: DatabaseUser = {
+      id: userRow.id || uuidv4(),
+      email: userRow.email || email,
+      password: userRow.password || '',
+      role: userRow.role || 'STUDENT',
+      createdAt: userRow.createdAt ? new Date(userRow.createdAt) : undefined
     }
 
     // Verify password
-    if (!comparePassword(password, user.password)) {
+    if (!user.password || !comparePassword(password, user.password)) {
       logger.warn('Failed login attempt', { email })
       return res.status(401).json({ message: 'Invalid credentials' })
     }
 
-    // Ensure user.id and user.role are strings
-    const userId = user.id || uuidv4()
-    const userRole = user.role || 'STUDENT'
-
     // Generate token pair
-    const { accessToken, refreshToken } = generateTokenPair(userId, userRole)
+    const { accessToken, refreshToken } = generateTokenPair(user.id, user.role)
     
     // Store refresh token
-    await storeRefreshToken(userId, refreshToken)
+    await storeRefreshToken(user.id, refreshToken)
 
     logger.info('User logged in successfully', { 
-      userId, 
-      email, 
-      role: userRole 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role 
     })
 
     res.json({ 
       accessToken, 
       refreshToken, 
-      userId, 
-      email, 
-      role: userRole 
+      userId: user.id, 
+      email: user.email, 
+      role: user.role 
     })
   } catch (error) {
     logger.error('Login failed', { 
